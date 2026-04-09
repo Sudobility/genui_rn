@@ -18,7 +18,7 @@ import {
   TextArea,
 } from '@sudobility/components-rn';
 import type { SelectOption } from '@sudobility/components-rn';
-import { cn, ui } from '@sudobility/design';
+import { cn, colors, ui } from '@sudobility/design';
 import { WebView } from 'react-native-webview';
 import Slider from '@react-native-community/slider';
 import type { GenUIActionHandler, IRenderable, IRenderableView } from './types';
@@ -426,7 +426,7 @@ const SliderNode: React.FC<InteractiveNodeProps> = ({
           minimumValue={0}
           maximumValue={100}
           step={1}
-          minimumTrackTintColor='#2563eb'
+          minimumTrackTintColor={colors.raw.blue[600]}
           onValueChange={nextValue => {
             const rounded = Math.round(nextValue);
             setValue(rounded);
@@ -499,7 +499,10 @@ const renderWaiting = (view: IRenderableView) => (
       resolveViewModifierClasses(view.modifier)
     )}
   >
-    <ActivityIndicator size='small' color='#475569' />
+    <ActivityIndicator
+      size='small'
+      color={colors.semantic.text.secondary.light}
+    />
     {labelText(view.title) ? (
       <Text size='sm' color='muted' className='ml-3'>
         {labelText(view.title)}
