@@ -21,6 +21,7 @@ import type { SelectOption } from '@sudobility/components-rn';
 import { cn, colors, ui } from '@sudobility/design';
 import { WebView } from 'react-native-webview';
 import Slider from '@react-native-community/slider';
+import MapView, { Marker as MapMarker } from 'react-native-maps';
 import type { GenUIActionHandler, IRenderable, IRenderableView } from './types';
 import {
   actionValueOf,
@@ -113,7 +114,6 @@ const CollectionLayouts = new Set([
   'grid_simple',
   'grid_sectioned',
   'carousel',
-  'map',
   'calendar',
   'stacked',
   'stacked_horizontal',
@@ -242,6 +242,159 @@ const renderCarousel = (
         keyExtractor={item => item.id}
       />
     </View>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// Map (react-native-maps)
+// ---------------------------------------------------------------------------
+
+const computeRegion = (
+  locations: { lat: number; long: number }[]
+): {
+  latitude: number;
+  longitude: number;
+  latitudeDelta: number;
+  longitudeDelta: number;
+} => {
+  const lats = locations.map(l => l.lat);
+  const lngs = locations.map(l => l.long);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+  const latDelta = Math.max((maxLat - minLat) * 1.5, 0.01);
+  const lngDelta = Math.max((maxLng - minLng) * 1.5, 0.01);
+
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta: latDelta,
+    longitudeDelta: lngDelta,
+  };
+};
+
+const renderMapPin = (
+  renderable: IRenderable,
+  view: IRenderableView,
+  _onAction?: GenUIActionHandler
+) => {
+  const loc = renderable.location;
+  if (!loc) return null;
+
+  const title = labelText(view.title);
+
+  return (
+    <Box
+      p='md'
+      rounded='lg'
+      border
+      className={cn(
+        'w-full',
+        resolveViewModifierClasses(view.modifier),
+        !view.modifier?.borderColor && 'border-slate-200'
+      )}
+    >
+      <Stack spacing='md'>
+        {titleBlock(view)}
+        <View
+          className='overflow-hidden rounded-lg'
+          style={{ height: view.modifier?.height ?? 300 }}
+        >
+          <MapView
+            style={{ flex: 1 }}
+            initialRegion={{
+              latitude: loc.lat,
+              longitude: loc.long,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }}
+          >
+            <MapMarker
+              coordinate={{ latitude: loc.lat, longitude: loc.long }}
+              title={title || undefined}
+              description={
+                labelText(view.subtitle) || labelText(view.details) || undefined
+              }
+            />
+          </MapView>
+        </View>
+      </Stack>
+    </Box>
+  );
+};
+
+const renderMap = (
+  _renderable: IRenderable,
+  view: IRenderableView,
+  onAction?: GenUIActionHandler
+) => {
+  const children = view.children ?? [];
+  const locatedChildren = children.filter(c => c.location);
+
+  if (locatedChildren.length === 0) {
+    return (
+      <Box p='md' rounded='lg' border className='w-full border-slate-200'>
+        <Stack spacing='md'>
+          {titleBlock(view)}
+          <Text size='sm' color='muted'>
+            No locations to display.
+          </Text>
+        </Stack>
+      </Box>
+    );
+  }
+
+  const region = computeRegion(locatedChildren.map(c => c.location!));
+
+  return (
+    <Box
+      p='md'
+      rounded='lg'
+      border
+      className={cn(
+        'w-full',
+        resolveViewModifierClasses(view.modifier),
+        !view.modifier?.borderColor && 'border-slate-200'
+      )}
+    >
+      <Stack spacing='md'>
+        {titleBlock(view)}
+        <View
+          className='overflow-hidden rounded-lg'
+          style={{ height: view.modifier?.height ?? 400 }}
+        >
+          <MapView style={{ flex: 1 }} initialRegion={region}>
+            {locatedChildren.map(child => {
+              const childView = child.view;
+              const pinTitle = labelText(childView?.title);
+              const value = actionValueOf(child);
+
+              return (
+                <MapMarker
+                  key={child.id}
+                  coordinate={{
+                    latitude: child.location!.lat,
+                    longitude: child.location!.long,
+                  }}
+                  title={pinTitle || undefined}
+                  description={
+                    labelText(childView?.subtitle) ||
+                    labelText(childView?.details) ||
+                    undefined
+                  }
+                  onPress={
+                    onAction && value !== undefined
+                      ? () => onAction(value, child)
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </MapView>
+        </View>
+      </Stack>
+    </Box>
   );
 };
 
@@ -796,6 +949,14 @@ export const RenderNode: React.FC<RenderNodeProps> = ({
 
   if (LineLayouts.has(layout)) {
     return renderLine(view);
+  }
+
+  if (layout === 'map_pin') {
+    return renderMapPin(renderable, view, onAction);
+  }
+
+  if (layout === 'map') {
+    return renderMap(renderable, view, onAction);
   }
 
   if (layout === 'carousel') {

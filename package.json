@@ -1,6 +1,6 @@
 {
   "name": "@sudobility/genui_rn",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "React Native renderer for IRenderable tree payloads",
   "type": "module",
   "main": "dist/index.esm.js",
@@ -44,6 +44,7 @@
     "nativewind": ">=4.0.0",
     "@sudobility/components-rn": "^1.0.45",
     "@sudobility/design": "^1.1.28",
+    "react-native-maps": "^1.27.2",
     "react-native-webview": ">=13.0.0",
     "@react-native-community/slider": ">=4.0.0",
     "clsx": "^2.0.0"
