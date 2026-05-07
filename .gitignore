@@ -2,3 +2,16 @@ node_modules/
 dist/
 *.tsbuildinfo
 .DS_Store
+
+# Xcode DerivedData build cache
+.deriveddata/
+
+# Build artifacts (xcarchive, IPA, AAB, etc.)
+app_store/builds/
+
+# App Store API keys
+app_store/.keys/
+.env.merged
+
+# Claude Code local settings
+.claude/settings.local.json
