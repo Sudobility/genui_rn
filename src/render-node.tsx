@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   FlatList,
   Dimensions,
+  useColorScheme,
 } from 'react-native';
 import {
   Box,
@@ -18,7 +19,8 @@ import {
   TextArea,
 } from '@sudobility/components-rn';
 import type { SelectOption } from '@sudobility/components-rn';
-import { cn, colors, ui } from '@sudobility/design';
+import { cn, ui } from '@sudobility/design';
+import { defaultTheme } from '@sudobility/design/themes';
 import { WebView } from 'react-native-webview';
 import Slider from '@react-native-community/slider';
 import MapView, { Marker as MapMarker } from 'react-native-maps';
@@ -42,6 +44,16 @@ interface RenderNodeProps {
   renderable: IRenderable;
   onAction?: GenUIActionHandler;
 }
+
+// Some native components (Slider tint, ActivityIndicator) take a concrete color
+// string and cannot use a `className`. Derive these from the same design-system
+// tokens the rest of the tree uses (per the active color scheme) instead of
+// hardcoding a parallel palette. Design tokens are HSL channel strings
+// ("222.2 84% 4.9%"); React Native's parser wants the comma form.
+const hsl = (channels: string): string => {
+  const [h, s, l] = channels.trim().split(/\s+/);
+  return `hsl(${h}, ${s}, ${l})`;
+};
 
 const renderImage = (
   image?:
@@ -181,7 +193,7 @@ const renderCollection = (
       className={cn(
         'w-full',
         resolveViewModifierClasses(view.modifier),
-        !view.modifier?.borderColor && 'border-slate-200'
+        !view.modifier?.borderColor && 'border-border'
       )}
     >
       <Stack spacing='md'>
@@ -292,7 +304,7 @@ const renderMapPin = (
       className={cn(
         'w-full',
         resolveViewModifierClasses(view.modifier),
-        !view.modifier?.borderColor && 'border-slate-200'
+        !view.modifier?.borderColor && 'border-border'
       )}
     >
       <Stack spacing='md'>
@@ -334,7 +346,7 @@ const renderMap = (
 
   if (locatedChildren.length === 0) {
     return (
-      <Box p='md' rounded='lg' border className='w-full border-slate-200'>
+      <Box p='md' rounded='lg' border className='w-full border-border'>
         <Stack spacing='md'>
           {titleBlock(view)}
           <Text size='sm' color='muted'>
@@ -355,7 +367,7 @@ const renderMap = (
       className={cn(
         'w-full',
         resolveViewModifierClasses(view.modifier),
-        !view.modifier?.borderColor && 'border-slate-200'
+        !view.modifier?.borderColor && 'border-border'
       )}
     >
       <Stack spacing='md'>
@@ -476,7 +488,7 @@ const InputNode: React.FC<InteractiveNodeProps> = ({
       className={cn(
         'w-full',
         resolveViewModifierClasses(view.modifier),
-        !view.modifier?.borderColor && 'border-slate-200'
+        !view.modifier?.borderColor && 'border-border'
       )}
     >
       <Stack spacing='sm'>
@@ -530,7 +542,7 @@ const renderToggle = (
       rounded='lg'
       border
       className={cn(
-        'w-full border-slate-200',
+        'w-full border-border',
         resolveViewModifierClasses(view.modifier)
       )}
     >
@@ -556,6 +568,8 @@ const SliderNode: React.FC<InteractiveNodeProps> = ({
   const [value, setValue] = React.useState(
     Number.isFinite(initialValue) ? initialValue : 0
   );
+  const scheme = useColorScheme();
+  const tokens = scheme === 'dark' ? defaultTheme.dark : defaultTheme.light;
 
   return (
     <Box
@@ -563,7 +577,7 @@ const SliderNode: React.FC<InteractiveNodeProps> = ({
       rounded='lg'
       border
       className={cn(
-        'w-full border-slate-200',
+        'w-full border-border',
         resolveViewModifierClasses(view.modifier)
       )}
     >
@@ -579,7 +593,7 @@ const SliderNode: React.FC<InteractiveNodeProps> = ({
           minimumValue={0}
           maximumValue={100}
           step={1}
-          minimumTrackTintColor={colors.raw.blue[600]}
+          minimumTrackTintColor={hsl(tokens.primary)}
           onValueChange={nextValue => {
             const rounded = Math.round(nextValue);
             setValue(rounded);
@@ -617,7 +631,7 @@ const renderSelect = (
       rounded='lg'
       border
       className={cn(
-        'w-full border-slate-200',
+        'w-full border-border',
         resolveViewModifierClasses(view.modifier)
       )}
     >
@@ -645,24 +659,26 @@ const renderSpacer = (view: IRenderableView) => (
   />
 );
 
-const renderWaiting = (view: IRenderableView) => (
-  <View
-    className={cn(
-      'flex w-full flex-row items-center justify-center py-8',
-      resolveViewModifierClasses(view.modifier)
-    )}
-  >
-    <ActivityIndicator
-      size='small'
-      color={colors.semantic.text.secondary.light}
-    />
-    {labelText(view.title) ? (
-      <Text size='sm' color='muted' className='ml-3'>
-        {labelText(view.title)}
-      </Text>
-    ) : null}
-  </View>
-);
+const WaitingNode: React.FC<{ view: IRenderableView }> = ({ view }) => {
+  const scheme = useColorScheme();
+  const tokens = scheme === 'dark' ? defaultTheme.dark : defaultTheme.light;
+
+  return (
+    <View
+      className={cn(
+        'flex w-full flex-row items-center justify-center py-8',
+        resolveViewModifierClasses(view.modifier)
+      )}
+    >
+      <ActivityIndicator size='small' color={hsl(tokens.mutedForeground)} />
+      {labelText(view.title) ? (
+        <Text size='sm' color='muted' className='ml-3'>
+          {labelText(view.title)}
+        </Text>
+      ) : null}
+    </View>
+  );
+};
 
 const renderWeb = (view: IRenderableView) => {
   const url = view.url?.url;
@@ -673,7 +689,7 @@ const renderWeb = (view: IRenderableView) => {
   return (
     <View
       className={cn(
-        'w-full overflow-hidden rounded-lg border border-slate-200',
+        'w-full overflow-hidden rounded-lg border border-border',
         resolveViewModifierClasses(view.modifier)
       )}
       style={{
@@ -878,7 +894,7 @@ const renderBasicCard = (
 ) => (
   <View
     className={cn(
-      'w-full rounded-lg border border-slate-200 p-4',
+      'w-full rounded-lg border border-border p-4',
       ui.background.surface,
       resolveViewModifierClasses(view.modifier)
     )}
@@ -920,7 +936,7 @@ export const RenderNode: React.FC<RenderNodeProps> = ({
   }
 
   if (layout === 'waiting') {
-    return renderWaiting(view);
+    return <WaitingNode view={view} />;
   }
 
   if (layout === 'web') {

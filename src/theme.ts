@@ -6,25 +6,45 @@ import type {
   ThemeColor,
 } from './types';
 
+// ---------------------------------------------------------------------------
+// ThemeColor -> className maps
+//
+// Semantic intents map to @sudobility/design semantic tokens (bg-background,
+// text-foreground, text-muted-foreground, bg-card, border-border, bg-primary,
+// text-primary-foreground, text-destructive, text-success, text-warning, ...),
+// which are theme-aware and flip light/dark at runtime via the consuming app's
+// NativeWind setup.
+//
+// The `SYSTEM_*` / `WHITE` / `BLACK` / named-gray entries are a deliberate
+// EXCEPTION: they mirror UIKit's `UIColor.systemX` named colors chosen directly
+// by a generative payload (this is a generative-UI renderer). They are
+// decorative identity data — a category/brand-style palette — with no
+// semantic-token equivalent (the design system has no teal/indigo/mint/pink/...
+// token). Collapsing them onto intent tokens would destroy the explicit color
+// the payload asked for, so they stay as fixed palette classes by design.
+// ---------------------------------------------------------------------------
+
 const textColorMap: Record<string, string> = {
-  LABEL: 'text-slate-900',
-  LABEL_SECONDARY: 'text-slate-600',
-  LABEL_TERTIARY: 'text-slate-500',
-  LABEL_QUATERNARY: 'text-slate-400',
-  LINK: 'text-blue-600',
-  TABLE_CELL_BLUE_TEXT: 'text-blue-600',
-  ACTION_TEXT: 'text-white',
-  ACTION_TEXT_SECONDARY: 'text-slate-900',
-  ACTION_TEXT_DESTRUCTIVE: 'text-white',
-  NAVITEM_TEXT: 'text-slate-600',
-  NAVITEM_TEXT_SELECTED: 'text-blue-600',
-  SUCCESS: 'text-emerald-600',
-  WARNING: 'text-amber-600',
-  WARNING_SECONDARY: 'text-amber-500',
-  ERROR: 'text-rose-600',
-  SELECTED: 'text-blue-600',
-  DISABLED: 'text-slate-400',
-  TEXT_PLACEHOLDER: 'text-slate-400',
+  // Semantic intents -> design tokens
+  LABEL: 'text-foreground',
+  LABEL_SECONDARY: 'text-muted-foreground',
+  LABEL_TERTIARY: 'text-muted-foreground',
+  LABEL_QUATERNARY: 'text-muted-foreground',
+  LINK: 'text-primary',
+  TABLE_CELL_BLUE_TEXT: 'text-primary',
+  ACTION_TEXT: 'text-primary-foreground',
+  ACTION_TEXT_SECONDARY: 'text-secondary-foreground',
+  ACTION_TEXT_DESTRUCTIVE: 'text-destructive-foreground',
+  NAVITEM_TEXT: 'text-muted-foreground',
+  NAVITEM_TEXT_SELECTED: 'text-primary',
+  SUCCESS: 'text-success',
+  WARNING: 'text-warning',
+  WARNING_SECONDARY: 'text-warning',
+  ERROR: 'text-destructive',
+  SELECTED: 'text-primary',
+  DISABLED: 'text-muted-foreground',
+  TEXT_PLACEHOLDER: 'text-muted-foreground',
+  // Named system/generative palette (decorative identity — see header note)
   SYSTEM_BLUE: 'text-blue-500',
   SYSTEM_BROWN: 'text-amber-700',
   SYSTEM_CYAN: 'text-cyan-500',
@@ -51,31 +71,33 @@ const textColorMap: Record<string, string> = {
 };
 
 const backgroundColorMap: Record<string, string> = {
+  // Semantic intents -> design tokens
   CLEAR: 'bg-transparent',
-  BACKGROUND: 'bg-white',
-  BACKGROUND_SECONDARY: 'bg-slate-50',
-  BACKGROUND_TERTIARY: 'bg-slate-100',
-  BACKGROUND_QUATERNARY: 'bg-slate-200',
-  BACKGROUND_GROUPED: 'bg-slate-50',
-  BACKGROUND_GROUPED_SECONDARY: 'bg-slate-100',
-  BACKGROUND_GROUPED_TERTIARY: 'bg-slate-200',
-  TABLE_BACKGROUND: 'bg-white',
-  ACTION_BACKGROUND: 'bg-blue-600',
-  ACTION_BACKGROUND_SECONDARY: 'bg-slate-100',
-  ACTION_BACKGROUND_DESTRUCTIVE: 'bg-rose-600',
-  NAV_BACKGROUND: 'bg-white',
-  NAVITEM_BACKGROUND: 'bg-slate-50',
-  NAVITEM_BACKGROUND_SELECTED: 'bg-blue-50',
-  FILL: 'bg-slate-200',
-  FILL_SECONDARY: 'bg-slate-100',
-  FILL_TERTIARY: 'bg-slate-50',
-  FILL_QUANTERNARY: 'bg-slate-25',
-  SELECTED: 'bg-blue-50',
-  SUCCESS: 'bg-emerald-50',
-  WARNING: 'bg-amber-50',
-  WARNING_SECONDARY: 'bg-amber-100',
-  ERROR: 'bg-rose-50',
-  DISABLED: 'bg-slate-100',
+  BACKGROUND: 'bg-background',
+  BACKGROUND_SECONDARY: 'bg-muted',
+  BACKGROUND_TERTIARY: 'bg-muted',
+  BACKGROUND_QUATERNARY: 'bg-muted',
+  BACKGROUND_GROUPED: 'bg-muted',
+  BACKGROUND_GROUPED_SECONDARY: 'bg-muted',
+  BACKGROUND_GROUPED_TERTIARY: 'bg-muted',
+  TABLE_BACKGROUND: 'bg-card',
+  ACTION_BACKGROUND: 'bg-primary',
+  ACTION_BACKGROUND_SECONDARY: 'bg-secondary',
+  ACTION_BACKGROUND_DESTRUCTIVE: 'bg-destructive',
+  NAV_BACKGROUND: 'bg-background',
+  NAVITEM_BACKGROUND: 'bg-muted',
+  NAVITEM_BACKGROUND_SELECTED: 'bg-accent',
+  FILL: 'bg-muted',
+  FILL_SECONDARY: 'bg-muted',
+  FILL_TERTIARY: 'bg-muted',
+  FILL_QUANTERNARY: 'bg-muted',
+  SELECTED: 'bg-accent',
+  SUCCESS: 'bg-success/10',
+  WARNING: 'bg-warning/10',
+  WARNING_SECONDARY: 'bg-warning/20',
+  ERROR: 'bg-destructive/10',
+  DISABLED: 'bg-muted',
+  // Named system/generative palette (decorative identity — see header note)
   SYSTEM_BLUE: 'bg-blue-500',
   SYSTEM_BROWN: 'bg-amber-700',
   SYSTEM_CYAN: 'bg-cyan-500',
@@ -102,17 +124,20 @@ const backgroundColorMap: Record<string, string> = {
 };
 
 const borderColorMap: Record<string, string> = {
-  SEPARATOR: 'border-slate-200',
-  SEPARATOR_OPAQUE: 'border-slate-300',
-  ACTION_BORDER: 'border-blue-600',
-  ACTION_BORDER_SECONDARY: 'border-slate-200',
-  ACTION_BORDER_DESTRUCTIVE: 'border-rose-600',
-  SELECTED: 'border-blue-600',
-  SUCCESS: 'border-emerald-600',
-  WARNING: 'border-amber-500',
-  WARNING_SECONDARY: 'border-amber-400',
-  ERROR: 'border-rose-600',
-  DISABLED: 'border-slate-300',
+  // Semantic intents -> design tokens
+  SEPARATOR: 'border-border',
+  SEPARATOR_OPAQUE: 'border-border',
+  ACTION_BORDER: 'border-primary',
+  ACTION_BORDER_SECONDARY: 'border-border',
+  ACTION_BORDER_DESTRUCTIVE: 'border-destructive',
+  SELECTED: 'border-primary',
+  SUCCESS: 'border-success',
+  WARNING: 'border-warning',
+  WARNING_SECONDARY: 'border-warning',
+  ERROR: 'border-destructive',
+  DISABLED: 'border-border',
+  LABEL_SECONDARY: 'border-border',
+  // Named system/generative palette (decorative identity — see header note)
   SYSTEM_BLUE: 'border-blue-500',
   SYSTEM_BROWN: 'border-amber-700',
   SYSTEM_CYAN: 'border-cyan-500',
@@ -132,7 +157,6 @@ const borderColorMap: Record<string, string> = {
   SYSTEM_RED: 'border-red-500',
   SYSTEM_TEAL: 'border-teal-500',
   SYSTEM_YELLOW: 'border-yellow-500',
-  LABEL_SECONDARY: 'border-slate-300',
   LIGHT_GRAY: 'border-slate-200',
   DARK_GRAY: 'border-slate-700',
 };

@@ -21,9 +21,10 @@ export default defineConfig({
         'react-native',
         'react-native-webview',
         '@react-native-community/slider',
+        'react-native-maps',
         'nativewind',
-        '@sudobility/components-rn',
-        '@sudobility/design',
+        /^@sudobility\/components-rn(\/.*)?$/,
+        /^@sudobility\/design(\/.*)?$/,
         'clsx',
       ],
       output: {
