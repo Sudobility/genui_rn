@@ -26,7 +26,7 @@
     "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "test": "jest --passWithNoTests",
+    "test:unit": "jest --passWithNoTests",
     "prepublishOnly": "bun run build"
   },
   "keywords": [
