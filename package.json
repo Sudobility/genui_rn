@@ -1,6 +1,6 @@
 {
   "name": "@sudobility/genui_rn",
-  "version": "0.1.84",
+  "version": "0.1.85",
   "description": "React Native renderer for IRenderable tree payloads",
   "type": "module",
   "main": "dist/index.esm.js",
