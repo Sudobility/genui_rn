@@ -84,7 +84,7 @@ const backgroundColorMap: Record<string, string> = {
   ACTION_BACKGROUND: 'bg-primary',
   ACTION_BACKGROUND_SECONDARY: 'bg-secondary',
   ACTION_BACKGROUND_DESTRUCTIVE: 'bg-destructive',
-  NAV_BACKGROUND: 'bg-background',
+  NAV_BACKGROUND: 'bg-card',
   NAVITEM_BACKGROUND: 'bg-muted',
   NAVITEM_BACKGROUND_SELECTED: 'bg-accent',
   FILL: 'bg-muted',

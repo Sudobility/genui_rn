@@ -1,15 +1,19 @@
 import * as React from 'react';
 import {
-  View,
-  Image,
   ActivityIndicator,
-  FlatList,
   Dimensions,
+  FlatList,
+  Image,
+  Linking,
+  Pressable,
+  StyleSheet,
+  View,
   useColorScheme,
 } from 'react-native';
 import {
   Box,
   Button,
+  DateInput,
   HStack,
   Input,
   Select,
@@ -19,7 +23,7 @@ import {
   TextArea,
 } from '@sudobility/components-rn';
 import type { SelectOption } from '@sudobility/components-rn';
-import { cn, ui } from '@sudobility/design';
+import { cn } from '@sudobility/design';
 import { defaultTheme } from '@sudobility/design/themes';
 import { WebView } from 'react-native-webview';
 import Slider from '@react-native-community/slider';
@@ -40,6 +44,19 @@ import {
   resolveViewModifierClasses,
 } from './theme';
 
+// ---------------------------------------------------------------------------
+// This file is the React Native mirror of `@sudobility/genui`'s
+// `render-node.tsx`: the same dispatch table, the same parts in the same
+// order, the same wording and the same `onAction` contract. Keep the two in
+// step — when the web renderer changes, port the change here.
+//
+// Styling rule: `className` goes ONLY on `@sudobility/components-rn`
+// components (`Box`, `Stack`, `Text`, `Button`, …), never on a core React
+// Native component. NativeWind compiles `className` in JSX the consuming app's
+// Babel sees; a core `View`/`Image`/`Text` reached through a precompiled build
+// would silently drop it. Core components here are styled with `style`.
+// ---------------------------------------------------------------------------
+
 interface RenderNodeProps {
   renderable: IRenderable;
   onAction?: GenUIActionHandler;
@@ -55,6 +72,12 @@ const hsl = (channels: string): string => {
   return `hsl(${h}, ${s}, ${l})`;
 };
 
+// A list (`list*`) draws its rows as one rounded block: no gap between rows and
+// no rounding on the action buttons inside it. The web does this with a
+// descendant selector (`[&_button]:rounded-none`); React Native has none, so
+// the list tells its descendants through context.
+const InListContext = React.createContext(false);
+
 const renderImage = (
   image?:
     | IRenderableView['image']
@@ -69,14 +92,15 @@ const renderImage = (
   return (
     <Image
       source={{ uri: src }}
-      className='h-10 w-10 rounded-md'
+      style={styles.thumbnail}
       resizeMode='cover'
       accessibilityElementsHidden
+      importantForAccessibility='no'
     />
   );
 };
 
-const titleBlock = (view: IRenderableView) => {
+const titleBlock = (view: IRenderableView, align?: 'center') => {
   const title = labelText(view.title);
   const subtitle = labelText(view.subtitle);
   const details = labelText(view.details);
@@ -90,6 +114,7 @@ const titleBlock = (view: IRenderableView) => {
       {title ? (
         <Text
           weight='semibold'
+          align={align}
           className={resolveTextClasses(view.title?.modifier)}
         >
           {title}
@@ -99,6 +124,7 @@ const titleBlock = (view: IRenderableView) => {
         <Text
           size='sm'
           color='muted'
+          align={align}
           className={resolveTextClasses(view.subtitle?.modifier)}
         >
           {subtitle}
@@ -108,6 +134,7 @@ const titleBlock = (view: IRenderableView) => {
         <Text
           size='sm'
           color='muted'
+          align={align}
           className={resolveTextClasses(view.details?.modifier)}
         >
           {details}
@@ -144,7 +171,6 @@ const ActionLayouts = new Set([
   'fab',
   'fab_mini',
   'fab_extended',
-  'link',
   'nav_item',
   'nav_image_item',
   'tile',
@@ -182,40 +208,47 @@ const renderCollection = (
   onAction?: GenUIActionHandler
 ) => {
   const isGrid = view.layout?.startsWith('grid');
+  const isList = view.layout?.startsWith('list');
   const isHorizontal =
     view.layout === 'stacked_horizontal' || view.layout === 'spaced_horizontal';
 
-  return (
+  const body = (
     <Box
-      p='md'
-      rounded='lg'
-      border
       className={cn(
-        'w-full',
-        resolveViewModifierClasses(view.modifier),
-        !view.modifier?.borderColor && 'border-border'
+        isGrid
+          ? 'flex-row flex-wrap gap-4'
+          : isHorizontal
+            ? 'flex-row flex-nowrap gap-4'
+            : isList
+              ? 'flex-col overflow-hidden rounded-lg'
+              : 'flex-col gap-4'
       )}
+      style={resolveDimensionStyle(view.modifier)}
     >
+      {isGrid
+        ? (view.children ?? []).map(child => (
+            // One column on a phone, two from the `md` breakpoint — the web's
+            // `grid-cols-1 md:grid-cols-2` — in 4:3 cells (16:9 from `lg`).
+            <Box
+              key={child.id}
+              className='aspect-[4/3] w-full overflow-hidden md:w-[48%] lg:aspect-video'
+            >
+              <RenderNode renderable={child} onAction={onAction} />
+            </Box>
+          ))
+        : renderChildren(view.children, onAction)}
+    </Box>
+  );
+
+  return (
+    <Box className={cn('w-full', resolveViewModifierClasses(view.modifier))}>
       <Stack spacing='md'>
         {titleBlock(view)}
-        <View
-          className={cn(
-            isGrid
-              ? 'flex-row flex-wrap gap-4'
-              : isHorizontal
-                ? 'flex-row flex-nowrap gap-4'
-                : 'flex-col gap-4'
-          )}
-          style={resolveDimensionStyle(view.modifier)}
-        >
-          {isGrid
-            ? view.children?.map(child => (
-                <View key={child.id} className='w-[48%]'>
-                  <RenderNode renderable={child} onAction={onAction} />
-                </View>
-              ))
-            : renderChildren(view.children, onAction)}
-        </View>
+        {isList ? (
+          <InListContext.Provider value={true}>{body}</InListContext.Provider>
+        ) : (
+          body
+        )}
       </Stack>
     </Box>
   );
@@ -232,10 +265,8 @@ const renderCarousel = (
   const gap = 16;
 
   return (
-    <View className='w-full'>
-      {titleBlock(view) ? (
-        <View className='mb-4'>{titleBlock(view)}</View>
-      ) : null}
+    <Box className='w-full overflow-hidden'>
+      {titleBlock(view) ? <Box className='mb-4'>{titleBlock(view)}</Box> : null}
       <FlatList
         data={children}
         horizontal
@@ -253,12 +284,16 @@ const renderCarousel = (
         )}
         keyExtractor={item => item.id}
       />
-    </View>
+    </Box>
   );
 };
 
 // ---------------------------------------------------------------------------
 // Map (react-native-maps)
+//
+// The web draws maps with Google Maps JS and so needs `googleMapsApiKey`; a
+// native map takes its key from the app's native configuration, so the maps
+// below render without one (see `GenUIProps.googleMapsApiKey`).
 // ---------------------------------------------------------------------------
 
 const computeRegion = (
@@ -286,35 +321,27 @@ const computeRegion = (
   };
 };
 
-const renderMapPin = (
-  renderable: IRenderable,
-  view: IRenderableView,
-  _onAction?: GenUIActionHandler
-) => {
+const renderMapPin = (renderable: IRenderable, view: IRenderableView) => {
   const loc = renderable.location;
   if (!loc) return null;
 
   const title = labelText(view.title);
+  // The web opens an info window holding the subtitle and the details, one
+  // under the other; a native callout has a single description line.
+  const description = [labelText(view.subtitle), labelText(view.details)]
+    .filter(Boolean)
+    .join('\n');
 
   return (
-    <Box
-      p='md'
-      rounded='lg'
-      border
-      className={cn(
-        'w-full',
-        resolveViewModifierClasses(view.modifier),
-        !view.modifier?.borderColor && 'border-border'
-      )}
-    >
+    <Box className={cn('w-full', resolveViewModifierClasses(view.modifier))}>
       <Stack spacing='md'>
         {titleBlock(view)}
-        <View
-          className='overflow-hidden rounded-lg'
+        <Box
+          className='overflow-hidden'
           style={{ height: view.modifier?.height ?? 300 }}
         >
           <MapView
-            style={{ flex: 1 }}
+            style={styles.fill}
             initialRegion={{
               latitude: loc.lat,
               longitude: loc.long,
@@ -325,12 +352,10 @@ const renderMapPin = (
             <MapMarker
               coordinate={{ latitude: loc.lat, longitude: loc.long }}
               title={title || undefined}
-              description={
-                labelText(view.subtitle) || labelText(view.details) || undefined
-              }
+              description={description || undefined}
             />
           </MapView>
-        </View>
+        </Box>
       </Stack>
     </Box>
   );
@@ -346,7 +371,7 @@ const renderMap = (
 
   if (locatedChildren.length === 0) {
     return (
-      <Box p='md' rounded='lg' border className='w-full border-border'>
+      <Box className='w-full'>
         <Stack spacing='md'>
           {titleBlock(view)}
           <Text size='sm' color='muted'>
@@ -360,23 +385,14 @@ const renderMap = (
   const region = computeRegion(locatedChildren.map(c => c.location!));
 
   return (
-    <Box
-      p='md'
-      rounded='lg'
-      border
-      className={cn(
-        'w-full',
-        resolveViewModifierClasses(view.modifier),
-        !view.modifier?.borderColor && 'border-border'
-      )}
-    >
+    <Box className={cn('w-full', resolveViewModifierClasses(view.modifier))}>
       <Stack spacing='md'>
         {titleBlock(view)}
-        <View
-          className='overflow-hidden rounded-lg'
+        <Box
+          className='overflow-hidden'
           style={{ height: view.modifier?.height ?? 400 }}
         >
-          <MapView style={{ flex: 1 }} initialRegion={region}>
+          <MapView style={styles.fill} initialRegion={region}>
             {locatedChildren.map(child => {
               const childView = child.view;
               const pinTitle = labelText(childView?.title);
@@ -390,11 +406,6 @@ const renderMap = (
                     longitude: child.location!.long,
                   }}
                   title={pinTitle || undefined}
-                  description={
-                    labelText(childView?.subtitle) ||
-                    labelText(childView?.details) ||
-                    undefined
-                  }
                   onPress={
                     onAction && value !== undefined
                       ? () => onAction(value, child)
@@ -404,17 +415,56 @@ const renderMap = (
               );
             })}
           </MapView>
-        </View>
+        </Box>
       </Stack>
     </Box>
   );
 };
 
-const renderAction = (
-  renderable: IRenderable,
-  view: IRenderableView,
-  onAction?: GenUIActionHandler
-) => {
+const renderLink = (view: IRenderableView) => {
+  const url = view.url?.url;
+  const title = labelText(view.title);
+
+  if (!url && !title) {
+    return null;
+  }
+
+  return url ? (
+    <Pressable
+      accessibilityRole='link'
+      style={styles.link}
+      onPress={() => {
+        // The web opens the link in a new tab; here the system opens it.
+        Linking.openURL(url).catch(() => undefined);
+      }}
+    >
+      <Text
+        size='sm'
+        color='primary'
+        className={cn('underline', resolveViewModifierClasses(view.modifier))}
+      >
+        {title || url}
+      </Text>
+    </Pressable>
+  ) : (
+    <Text size='sm' className={resolveTextClasses(view.title?.modifier)}>
+      {title}
+    </Text>
+  );
+};
+
+interface InteractiveNodeProps {
+  renderable: IRenderable;
+  view: IRenderableView;
+  onAction?: GenUIActionHandler;
+}
+
+const ActionNode: React.FC<InteractiveNodeProps> = ({
+  renderable,
+  view,
+  onAction,
+}) => {
+  const inList = React.useContext(InListContext);
   const value = actionValueOf(renderable);
   const disabled = !onAction || value === undefined;
   const title = labelText(view.title) || renderable.id;
@@ -424,7 +474,8 @@ const renderAction = (
       variant='secondary'
       disabled={disabled}
       className={cn(
-        'w-full justify-start',
+        'justify-start',
+        inList && 'rounded-none',
         resolveViewModifierClasses(view.buttonModifier ?? view.modifier)
       )}
       onPress={() => {
@@ -460,20 +511,32 @@ const renderAction = (
   );
 };
 
-interface InteractiveNodeProps {
-  renderable: IRenderable;
-  view: IRenderableView;
-  onAction?: GenUIActionHandler;
-}
+/** `YYYY-MM-DD` as a local date, so the picker shows the day that was sent. */
+const parseLocalDate = (value: string): Date | string => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    return value;
+  }
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+};
 
 const InputNode: React.FC<InteractiveNodeProps> = ({
   renderable,
   view,
   onAction,
 }) => {
-  const [value, setValue] = React.useState(view.valueText?.text ?? '');
+  const initialValue = view.valueText?.text ?? '';
+  const [value, setValue] = React.useState(initialValue);
   const title = labelText(view.title);
   const helper = labelText(view.subtitle);
+
+  // Report the initial value once, on mount (as the web does).
+  React.useEffect(() => {
+    if (initialValue) {
+      onAction?.(initialValue, renderable);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const emit = (nextValue: string) => {
     setValue(nextValue);
@@ -482,13 +545,9 @@ const InputNode: React.FC<InteractiveNodeProps> = ({
 
   return (
     <Box
-      p='md'
-      rounded='lg'
-      border
       className={cn(
-        'w-full',
-        resolveViewModifierClasses(view.modifier),
-        !view.modifier?.borderColor && 'border-border'
+        'w-full rounded-lg bg-muted p-3',
+        resolveViewModifierClasses(view.modifier)
       )}
     >
       <Stack spacing='sm'>
@@ -506,6 +565,15 @@ const InputNode: React.FC<InteractiveNodeProps> = ({
             value={value}
             onChangeText={emit}
             placeholder={helper || title || 'Enter text'}
+            accessibilityLabel={title || renderable.id}
+          />
+        ) : view.layout === 'input_date' ? (
+          // The web's `<input type="date">`: a date picker reporting
+          // `YYYY-MM-DD`.
+          <DateInput
+            value={parseLocalDate(value)}
+            onChange={emit}
+            placeholder={helper || title || 'Enter value'}
           />
         ) : (
           <Input
@@ -517,39 +585,32 @@ const InputNode: React.FC<InteractiveNodeProps> = ({
             onChangeText={emit}
           />
         )}
-        {helper ? (
-          <Text size='sm' color='muted'>
-            {helper}
-          </Text>
-        ) : null}
       </Stack>
     </Box>
   );
 };
 
-const renderToggle = (
-  renderable: IRenderable,
-  view: IRenderableView,
-  onAction?: GenUIActionHandler
-) => {
-  const checked = ['1', 'true', 'yes', 'on'].includes(
+const ToggleNode: React.FC<InteractiveNodeProps> = ({
+  renderable,
+  view,
+  onAction,
+}) => {
+  const initialValue = ['1', 'true', 'yes', 'on'].includes(
     (view.valueText?.text ?? '').toLowerCase()
   );
 
+  // Report the initial value once, on mount (as the web does).
+  React.useEffect(() => {
+    onAction?.(initialValue ? 'true' : 'false', renderable);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <Box
-      p='md'
-      rounded='lg'
-      border
-      className={cn(
-        'w-full border-border',
-        resolveViewModifierClasses(view.modifier)
-      )}
-    >
+    <Box className={cn('w-full', resolveViewModifierClasses(view.modifier))}>
       <HStack justify='between' align='center' full>
         {titleBlock(view)}
         <Switch
-          checked={checked}
+          checked={initialValue}
           onCheckedChange={nextValue =>
             onAction?.(nextValue ? 'true' : 'false', renderable)
           }
@@ -571,16 +632,14 @@ const SliderNode: React.FC<InteractiveNodeProps> = ({
   const scheme = useColorScheme();
   const tokens = scheme === 'dark' ? defaultTheme.dark : defaultTheme.light;
 
+  // Report the initial value once, on mount (as the web does).
+  React.useEffect(() => {
+    onAction?.(String(value), renderable);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <Box
-      p='md'
-      rounded='lg'
-      border
-      className={cn(
-        'w-full border-border',
-        resolveViewModifierClasses(view.modifier)
-      )}
-    >
+    <Box className={cn('w-full', resolveViewModifierClasses(view.modifier))}>
       <Stack spacing='sm'>
         <HStack justify='between' align='center'>
           {titleBlock(view)}
@@ -606,11 +665,11 @@ const SliderNode: React.FC<InteractiveNodeProps> = ({
   );
 };
 
-const renderSelect = (
-  renderable: IRenderable,
-  view: IRenderableView,
-  onAction?: GenUIActionHandler
-) => {
+const SelectNode: React.FC<InteractiveNodeProps> = ({
+  renderable,
+  view,
+  onAction,
+}) => {
   const children = view.children ?? [];
   const options: SelectOption[] = children.map(option => {
     const optionView = option.view;
@@ -621,28 +680,42 @@ const renderSelect = (
 
     return { label: optionLabel, value: optionValue };
   });
+  // What `onAction` reports is the option's LABEL, not its value (as the web
+  // does); a value with no option reports itself.
+  const labelByValue: Record<string, string> = {};
+  for (const option of options) {
+    labelByValue[option.value] = option.label;
+  }
 
   const defaultValue =
-    view.valueText?.text ?? (options.length > 0 ? options[0].value : undefined);
+    view.valueText?.text ??
+    actionValueOf(children[0] ?? { id: '', destination: null, view: null });
+
+  // The components-rn `Select` is controlled only, so the choice is held here.
+  const [selected, setSelected] = React.useState(defaultValue);
+
+  // Report the initial value once, on mount (as the web does).
+  React.useEffect(() => {
+    if (defaultValue) {
+      onAction?.(labelByValue[defaultValue] ?? defaultValue, renderable);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <Box
-      p='md'
-      rounded='lg'
-      border
-      className={cn(
-        'w-full border-border',
-        resolveViewModifierClasses(view.modifier)
-      )}
-    >
+    <Box className={cn('w-full', resolveViewModifierClasses(view.modifier))}>
       <Stack spacing='sm'>
         {titleBlock(view)}
         <Select
-          value={defaultValue}
+          value={selected}
           options={options}
           placeholder='Select an option'
           title={labelText(view.title) || renderable.id}
-          onValueChange={v => onAction?.(v, renderable)}
+          accessibilityLabel={labelText(view.title) || renderable.id}
+          onValueChange={nextValue => {
+            setSelected(nextValue);
+            onAction?.(labelByValue[nextValue] ?? nextValue, renderable);
+          }}
         />
       </Stack>
     </Box>
@@ -652,6 +725,7 @@ const renderSelect = (
 const renderSpacer = (view: IRenderableView) => (
   <View
     accessibilityElementsHidden
+    importantForAccessibility='no'
     style={{
       width: view.modifier?.width ?? undefined,
       height: view.modifier?.height ?? 16,
@@ -664,9 +738,9 @@ const WaitingNode: React.FC<{ view: IRenderableView }> = ({ view }) => {
   const tokens = scheme === 'dark' ? defaultTheme.dark : defaultTheme.light;
 
   return (
-    <View
+    <Box
       className={cn(
-        'flex w-full flex-row items-center justify-center py-8',
+        'flex w-full flex-row items-center justify-center',
         resolveViewModifierClasses(view.modifier)
       )}
     >
@@ -676,7 +750,7 @@ const WaitingNode: React.FC<{ view: IRenderableView }> = ({ view }) => {
           {labelText(view.title)}
         </Text>
       ) : null}
-    </View>
+    </Box>
   );
 };
 
@@ -687,25 +761,25 @@ const renderWeb = (view: IRenderableView) => {
   }
 
   return (
-    <View
-      className={cn(
-        'w-full overflow-hidden rounded-lg border border-border',
-        resolveViewModifierClasses(view.modifier)
-      )}
+    <Box
+      className={cn('w-full', resolveViewModifierClasses(view.modifier))}
       style={{
         height: view.modifier?.height ?? 400,
         width: view.modifier?.width ?? undefined,
       }}
     >
-      <WebView source={{ uri: url }} />
-    </View>
+      <WebView
+        source={{ uri: url }}
+        accessibilityLabel={labelText(view.title) || 'Embedded content'}
+      />
+    </Box>
   );
 };
 
 const renderCenter = (view: IRenderableView, onAction?: GenUIActionHandler) => (
-  <View
+  <Box
     className={cn(
-      'flex w-full flex-col items-center justify-center gap-2 py-4',
+      'flex w-full flex-col items-center justify-center gap-2',
       resolveViewModifierClasses(view.modifier)
     )}
     style={resolveDimensionStyle(view.modifier)}
@@ -713,19 +787,24 @@ const renderCenter = (view: IRenderableView, onAction?: GenUIActionHandler) => (
     {view.layout === 'center_image'
       ? renderImage(view.image ?? view.icon)
       : null}
-    {titleBlock(view)}
+    {titleBlock(view, 'center')}
     {view.valueText?.text ? (
       <Text
         size='sm'
         color='muted'
+        align='center'
         className={resolveTextClasses(view.valueText.modifier)}
       >
         {view.valueText.text}
       </Text>
     ) : null}
     {view.children?.length ? renderChildren(view.children, onAction) : null}
-  </View>
+  </Box>
 );
+
+// A remote image has no intrinsic size in React Native, so where the web lets
+// the image take its natural height these fall back to a fixed one.
+const IMAGE_FALLBACK_HEIGHT = 200;
 
 const renderJustImage = (view: IRenderableView) => {
   const src = imageSrc(view.image ?? view.icon);
@@ -734,16 +813,20 @@ const renderJustImage = (view: IRenderableView) => {
   }
 
   return (
-    <Image
-      source={{ uri: src }}
-      className={cn('rounded-lg', resolveViewModifierClasses(view.modifier))}
-      resizeMode='cover'
+    <Box
+      className={resolveViewModifierClasses(view.modifier)}
       style={{
         width: view.modifier?.width ?? '100%',
-        height: view.modifier?.height ?? 200,
+        height: view.modifier?.height ?? IMAGE_FALLBACK_HEIGHT,
       }}
-      accessibilityLabel={labelText(view.title) || ''}
-    />
+    >
+      <Image
+        source={{ uri: src }}
+        style={styles.fillImage}
+        resizeMode='cover'
+        accessibilityLabel={labelText(view.title) || ''}
+      />
+    </Box>
   );
 };
 
@@ -754,81 +837,95 @@ const renderEmbeddedImage = (
   const src = imageSrc(view.image ?? view.icon);
 
   return (
-    <View
+    <Box
       className={cn('w-full', resolveViewModifierClasses(view.modifier))}
       style={resolveDimensionStyle(view.modifier)}
     >
       {src ? (
         <Image
           source={{ uri: src }}
-          className='mb-2 w-full rounded-lg'
+          style={styles.embeddedImage}
           resizeMode='cover'
-          style={{ height: 200 }}
           accessibilityLabel={labelText(view.title) || ''}
         />
       ) : null}
       {titleBlock(view)}
       {view.children?.length ? renderChildren(view.children, onAction) : null}
-    </View>
+    </Box>
   );
 };
 
-const renderParagraph = (view: IRenderableView) => {
+const renderParagraph = (
+  view: IRenderableView,
+  onAction?: GenUIActionHandler
+) => {
   const title = labelText(view.title);
   const detail = labelText(view.details);
-  const text = title || detail || view.valueText?.text || '';
 
-  if (!text) {
+  if (!title && !detail && !view.children?.length) {
     return null;
   }
 
   return (
-    <View
+    <Box
       className={cn('w-full', resolveViewModifierClasses(view.modifier))}
       style={resolveDimensionStyle(view.modifier)}
     >
-      <Text
-        className={resolveTextClasses(
-          view.title?.modifier ??
-            view.details?.modifier ??
-            view.valueText?.modifier
-        )}
-      >
-        {text}
-      </Text>
-    </View>
+      <Stack spacing='sm'>
+        {title ? (
+          <Text
+            weight='semibold'
+            className={resolveTextClasses(view.title?.modifier)}
+          >
+            {title}
+          </Text>
+        ) : null}
+        {detail ? (
+          <Text
+            color='muted'
+            className={resolveTextClasses(view.details?.modifier)}
+          >
+            {detail}
+          </Text>
+        ) : null}
+        {view.children?.length ? renderChildren(view.children, onAction) : null}
+      </Stack>
+    </Box>
   );
 };
 
-const renderFooter = (view: IRenderableView) => {
+const renderFooter = (view: IRenderableView, onAction?: GenUIActionHandler) => {
   const text =
     labelText(view.title) ||
     labelText(view.details) ||
     view.valueText?.text ||
     '';
 
-  if (!text) {
+  if (!text && !view.children?.length) {
     return null;
   }
 
   return (
-    <View
-      className={cn('w-full py-2', resolveViewModifierClasses(view.modifier))}
+    <Box
+      className={cn('w-full', resolveViewModifierClasses(view.modifier))}
       style={resolveDimensionStyle(view.modifier)}
     >
-      <Text
-        size='xs'
-        color='muted'
-        align='center'
-        className={resolveTextClasses(view.title?.modifier)}
-      >
-        {text}
-      </Text>
-    </View>
+      {text ? (
+        <Text
+          size='xs'
+          color='muted'
+          align='center'
+          className={resolveTextClasses(view.title?.modifier)}
+        >
+          {text}
+        </Text>
+      ) : null}
+      {view.children?.length ? renderChildren(view.children, onAction) : null}
+    </Box>
   );
 };
 
-const renderLine = (view: IRenderableView) => {
+const renderLine = (view: IRenderableView, onAction?: GenUIActionHandler) => {
   const hasImage = view.layout?.startsWith('line_image');
   const title = labelText(view.title);
   const subtitle = labelText(view.subtitle);
@@ -836,15 +933,15 @@ const renderLine = (view: IRenderableView) => {
   const detail = labelText(view.details);
 
   return (
-    <View
+    <Box
       className={cn(
-        'flex-row items-center gap-3 py-2',
+        'flex-row items-center gap-3',
         resolveViewModifierClasses(view.modifier)
       )}
       style={resolveDimensionStyle(view.modifier)}
     >
       {hasImage ? renderImage(view.image ?? view.icon) : null}
-      <View className='min-w-0 flex-1'>
+      <Box className='min-w-0 flex-1'>
         {title ? (
           <Text
             weight='medium'
@@ -871,7 +968,8 @@ const renderLine = (view: IRenderableView) => {
             {detail}
           </Text>
         ) : null}
-      </View>
+        {view.children?.length ? renderChildren(view.children, onAction) : null}
+      </Box>
       {value ? (
         <Text
           size='sm'
@@ -884,7 +982,7 @@ const renderLine = (view: IRenderableView) => {
           {value}
         </Text>
       ) : null}
-    </View>
+    </Box>
   );
 };
 
@@ -892,12 +990,8 @@ const renderBasicCard = (
   view: IRenderableView,
   onAction?: GenUIActionHandler
 ) => (
-  <View
-    className={cn(
-      'w-full rounded-lg border border-border p-4',
-      ui.background.surface,
-      resolveViewModifierClasses(view.modifier)
-    )}
+  <Box
+    className={cn('w-full', resolveViewModifierClasses(view.modifier))}
     style={resolveDimensionStyle(view.modifier)}
   >
     <HStack align='start' spacing='sm'>
@@ -916,7 +1010,7 @@ const renderBasicCard = (
         {view.children?.length ? renderChildren(view.children, onAction) : null}
       </Stack>
     </HStack>
-  </View>
+  </Box>
 );
 
 export const RenderNode: React.FC<RenderNodeProps> = ({
@@ -927,6 +1021,13 @@ export const RenderNode: React.FC<RenderNodeProps> = ({
 
   if (!view) {
     return null;
+  }
+
+  // Merge top-level children into view (handles AI misplacing children on the renderable)
+  const misplacedChildren = (renderable as unknown as Record<string, unknown>)
+    .children as IRenderable[] | undefined;
+  if (misplacedChildren?.length && !view.children?.length) {
+    view.children = misplacedChildren;
   }
 
   const layout = view.layout ?? '';
@@ -956,19 +1057,19 @@ export const RenderNode: React.FC<RenderNodeProps> = ({
   }
 
   if (layout === 'paragraph' || layout === 'text_markup') {
-    return renderParagraph(view);
+    return renderParagraph(view, onAction);
   }
 
   if (layout === 'footer') {
-    return renderFooter(view);
+    return renderFooter(view, onAction);
   }
 
   if (LineLayouts.has(layout)) {
-    return renderLine(view);
+    return renderLine(view, onAction);
   }
 
   if (layout === 'map_pin') {
-    return renderMapPin(renderable, view, onAction);
+    return renderMapPin(renderable, view);
   }
 
   if (layout === 'map') {
@@ -990,7 +1091,9 @@ export const RenderNode: React.FC<RenderNodeProps> = ({
   }
 
   if (layout === 'line_toggle') {
-    return renderToggle(renderable, view, onAction);
+    return (
+      <ToggleNode renderable={renderable} view={view} onAction={onAction} />
+    );
   }
 
   if (layout === 'line_slider') {
@@ -1000,12 +1103,45 @@ export const RenderNode: React.FC<RenderNodeProps> = ({
   }
 
   if (layout === 'line_select') {
-    return renderSelect(renderable, view, onAction);
+    return (
+      <SelectNode renderable={renderable} view={view} onAction={onAction} />
+    );
+  }
+
+  if (layout === 'link') {
+    return renderLink(view);
   }
 
   if (ActionLayouts.has(layout)) {
-    return renderAction(renderable, view, onAction);
+    return (
+      <ActionNode renderable={renderable} view={view} onAction={onAction} />
+    );
   }
 
   return renderBasicCard(view, onAction);
 };
+
+const styles = StyleSheet.create({
+  // `h-10 w-10 rounded-md`
+  thumbnail: {
+    width: 40,
+    height: 40,
+    borderRadius: 6,
+  },
+  fill: {
+    flex: 1,
+  },
+  fillImage: {
+    width: '100%',
+    height: '100%',
+  },
+  // `mb-2 w-full`
+  embeddedImage: {
+    width: '100%',
+    height: IMAGE_FALLBACK_HEIGHT,
+    marginBottom: 8,
+  },
+  link: {
+    alignSelf: 'flex-start',
+  },
+});

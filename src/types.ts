@@ -28,4 +28,13 @@ export interface GenUIProps {
   renderable: IRenderable;
   onAction?: GenUIActionHandler;
   className?: string;
+  /**
+   * Accepted so a call site written for the web `@sudobility/genui` compiles
+   * unchanged; **not used on native**. The web draws `map` / `map_pin` with
+   * Google Maps JS and needs the key at runtime. Here they are drawn by
+   * `react-native-maps`, which takes its key from the app's native
+   * configuration (Android manifest / iOS `AppDelegate`), so the maps render
+   * with or without this prop.
+   */
+  googleMapsApiKey?: string;
 }

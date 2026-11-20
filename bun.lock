@@ -39,6 +39,7 @@
         "@sudobility/components-rn": "^1.0.149",
         "@sudobility/design": "^1.1.69",
         "@sudobility/genui_types": "^0.0.5",
+        "@sudobility/types": "^1.11.2",
         "clsx": "^2.0.0",
         "nativewind": ">=4.0.0",
         "react": "^18.0.0 || ^19.0.0",
@@ -537,7 +538,7 @@
 
     "@sudobility/genui_types": ["@sudobility/genui_types@0.0.5", "https://npm.pkg.github.com/download/@sudobility/genui_types/0.0.5/1e7852d65ed019d5322581ca53f94b21b12e1561", {}, "sha512-+MMwuKXy4UWubYQLmHxwJT4ZIyBMhzk/KAw2ozhMaw2MCHYwDegXBqhAAqizZqL9k3mze3zP3XHQYDtq1kbkxA=="],
 
-    "@sudobility/types": ["@sudobility/types@1.9.76", "https://npm.pkg.github.com/download/@sudobility/types/1.9.76/71635156f72fd9461107d5f147b3dc1c49f863d0", {}, "sha512-b7maZHR5wM84VlQ+l9R+2guzSOrExog6OUNy1oCe7h0abW13syycmnLQL0g+qql0aQ84qTB4A0mJelhY3Vef4Q=="],
+    "@sudobility/types": ["@sudobility/types@1.11.2", "https://npm.pkg.github.com/download/@sudobility/types/1.11.2/d6d0b1809eaca31ef737646032cc431111b58a49", {}, "sha512-gg+bPtcOGNETDt9oNdjcn7R22EfFWmRxMOhj0ADwulBJ9tJ4NaMaXkrTtkWF+figSDZqmD9a9kodgOHseq8gsQ=="],
 
     "@testing-library/jest-native": ["@testing-library/jest-native@5.4.3", "", { "dependencies": { "chalk": "^4.1.2", "jest-diff": "^29.0.1", "jest-matcher-utils": "^29.0.1", "pretty-format": "^29.0.3", "redent": "^3.0.0" }, "peerDependencies": { "react": ">=16.0.0", "react-native": ">=0.59", "react-test-renderer": ">=16.0.0" } }, "sha512-/sSDGaOuE+PJ1Z9Kp4u7PQScSVVXGud59I/qsBFFJvIbcn4P6yYw6cBnBmbPF+X9aRIsTJRDl6gzw5ZkJNm66w=="],
 

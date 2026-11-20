@@ -16,16 +16,25 @@ import { GenUI } from '@sudobility/genui_rn';
 import type { IRenderable, GenUIActionHandler } from '@sudobility/genui_rn';
 
 function Screen({ tree }: { tree: IRenderable }) {
-  const onAction: GenUIActionHandler = action => {
-    // handle taps, links, input changes, toggles, etc.
+  const onAction: GenUIActionHandler = (value, renderable) => {
+    // taps, input changes, toggles, sliders, selects — `value` is what was
+    // reported, `renderable` is the node that reported it
   };
   return <GenUI renderable={tree} onAction={onAction} className="..." />;
 }
 ```
 
 `GenUI` is the only runtime export. It wraps the recursive `RenderNode` dispatcher in a
-styled `Box`. Props (`GenUIProps`): `renderable: IRenderable` (required),
-`onAction?: GenUIActionHandler`, `className?: string`.
+bare full-width `Box` (no padding or background of its own). Props (`GenUIProps`):
+`renderable: IRenderable` (required), `onAction?: GenUIActionHandler`,
+`className?: string`, `googleMapsApiKey?: string` (accepted for parity with the web
+package and unused — native maps take their key from the app's native configuration).
+
+This package is the **native mirror of the web `@sudobility/genui`**: the same props, the
+same layout dispatch, the same parts in the same order, the same wording and the same
+`onAction` contract. Inputs, toggles, sliders and selects emit their initial value through
+`onAction` on mount, then again on every change; a select reports the chosen option's
+label; a `link` opens its URL and reports nothing.
 
 The package also re-exports the shared types and enums from `@sudobility/genui_types`
 (`IRenderable*`, `GenUIActionHandler`, `IScreenSEO`, and the `FontWeight`, `ThemeColor`,
@@ -48,6 +57,22 @@ Peer dependencies the consuming app must provide: `react`, `react-native`,
 The consuming app is also responsible for the NativeWind/Tailwind setup and runtime
 light/dark theming (see "Theming" below).
 
+### Consuming it from an app
+
+Metro loads this package from **source** (`src/index.ts`, through the `react-native`
+condition in `exports`), so the app's Babel — and with it NativeWind — compiles it. The app
+must add the package to its Tailwind `content`, or the utility classes it names are never
+generated and the tree renders unstyled:
+
+```js
+// tailwind.config.js
+content: [
+  './src/**/*.{ts,tsx}',
+  './node_modules/@sudobility/components-rn/src/**/*.{ts,tsx}',
+  './node_modules/@sudobility/genui_rn/src/**/*.{ts,tsx}',
+],
+```
+
 ## Scripts
 
 | Command | What it does |
@@ -57,7 +82,7 @@ light/dark theming (see "Theming" below).
 | `bun run type-check` | `tsc --noEmit`. |
 | `bun run lint` | ESLint over `src` (zero warnings allowed). |
 | `bun run format` / `format:check` | Prettier write / check. |
-| `bun run test:unit` | `jest --passWithNoTests` — **no test suite exists yet**; this passes vacuously. |
+| `bun run test:unit` | Jest + React Native Testing Library (`src/__tests__/`): the web suite case for case, the mirrored behaviour beyond it, the theme maps and the packaging rule. |
 | `bun run generate:theme` | Regenerate `global.css` from the active design theme (see below). |
 
 `prepublishOnly` runs `bun run build`; publishing is handled by CI.
@@ -68,7 +93,9 @@ light/dark theming (see "Theming" below).
 maps). Vite builds in library mode and externalizes `react`, `react-native`, all
 `@sudobility/*` packages, `nativewind`, `clsx`, `react-native-webview`, `react-native-maps`,
 and `@react-native-community/slider`, so they are never bundled. `package.json#react-native`
-points to `src/index.ts`, so Metro-based consumers transpile the source directly.
+**and** the `react-native` condition in `exports["."]` both point to `src/index.ts` (Metro
+reads `exports` first), so Metro-based consumers transpile the source directly; `dist` is for
+type-checking and non-Metro tooling.
 
 `fix-esm-imports.mjs` is required because `tsc` runs under `moduleResolution: "bundler"` and
 emits extensionless relative imports that Node's native ESM loader rejects; the script
@@ -94,6 +121,7 @@ src/
   index.ts        Public exports (GenUI + types/enums)
   gen-ui.tsx      <GenUI> — styled container around RenderNode
   render-node.tsx Recursive renderer; dispatches on view.layout to per-layout renderers
+  __tests__/      Jest suites (renderer, theme maps, packaging)
   types.ts        Re-exports @sudobility/genui_types + GenUIProps
   utils.ts        Helpers: labelText, imageSrc, viewOf, layout predicates, keyboard types
   theme.ts        ThemeColor/FontWeight → className maps + dimension style resolution
@@ -107,9 +135,9 @@ scripts/
 `RenderNode` reads `view = renderable.view` (or, for a screen destination, its `view`) and
 branches on `view.layout`. The layout string selects a renderer: collections
 (`list*`, `grid*`, `carousel`, `calendar`, `stacked*`, `tabs*`, `spaced*`, `header`), actions
-(`action`, `fab*`, `link`, `nav_item`, `tile`, `chip`, …), line layouts (`line_title*`,
+(`action`, `fab*`, `nav_item`, `tile`, `chip`, …), `link`, line layouts (`line_title*`,
 `line_image_title*`), inputs (`input_text`, `input_numeric`, `input_password`, `input_email`,
-`input_phone`, `input_date`, `input_text_block`, `search`), plus `line_toggle`, `line_slider`,
+`input_phone`, `input_date` (a date picker), `input_text_block`, `search`), plus `line_toggle`, `line_slider`,
 `line_select`, `map`/`map_pin`, `web`, images, spacers, `waiting`, `paragraph`/`text_markup`,
 `footer`, and `center*`. Anything unmatched falls back to a basic card. User interaction is
 surfaced through the `onAction` callback.
